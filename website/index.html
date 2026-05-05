@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GhostLocation — Spoof your iPhone GPS from your Mac</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0a0a0f;
+      --surface: #111118;
+      --border:  #1e1e2e;
+      --cyan:    #00d4ff;
+      --cyan2:   #0099bb;
+      --text:    #e8e8f0;
+      --muted:   #6b6b8a;
+      --red:     #ff4455;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 40px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .nav-logo svg { width: 28px; height: 28px; }
+    .nav-links { display: flex; gap: 28px; font-size: 14px; color: var(--muted); }
+    .nav-links a { color: var(--muted); transition: color .2s; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      padding: 100px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(0,212,255,.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,212,255,.1);
+      border: 1px solid rgba(0,212,255,.25);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 28px;
+    }
+    .badge::before {
+      content: "";
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.4; transform:scale(.7); }
+    }
+    h1 {
+      font-size: clamp(42px, 7vw, 80px);
+      font-weight: 800;
+      letter-spacing: -.03em;
+      line-height: 1.05;
+      margin-bottom: 24px;
+    }
+    h1 span { color: var(--cyan); }
+    .hero-sub {
+      font-size: clamp(16px, 2.5vw, 20px);
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto 44px;
+    }
+    .cta-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      transition: background .2s, transform .15s;
+    }
+    .btn-primary:hover { background: #33ddff; transform: translateY(-1px); text-decoration: none; }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      background: transparent;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 15px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      transition: border-color .2s, transform .15s;
+    }
+    .btn-secondary:hover { border-color: var(--muted); transform: translateY(-1px); text-decoration: none; }
+    .platform-note {
+      margin-top: 18px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── APP PREVIEW ── */
+    .preview-wrap {
+      max-width: 900px;
+      margin: 0 auto 100px;
+      padding: 0 24px;
+    }
+    .app-window {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 40px 120px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
+    }
+    .window-bar {
+      background: #161620;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot.r { background: #ff5f57; }
+    .dot.y { background: #ffbd2e; }
+    .dot.g { background: #28c840; }
+    .window-title {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .app-body {
+      display: flex;
+      height: 360px;
+    }
+    .app-sidebar {
+      width: 240px;
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .icon-wrap {
+      width: 28px; height: 28px;
+      background: rgba(0,212,255,.15);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .sidebar-title { font-weight: 700; font-size: 14px; }
+    .sidebar-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+    .device-row {
+      background: rgba(0,212,255,.08);
+      border: 1px solid rgba(0,212,255,.2);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .device-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); }
+    .mode-row { display: flex; gap: 6px; }
+    .mode-btn {
+      flex: 1;
+      background: rgba(0,212,255,.12);
+      border: 1px solid rgba(0,212,255,.3);
+      border-radius: 8px;
+      padding: 8px 4px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--cyan);
+    }
+    .mode-btn.off { background: #161620; border-color: var(--border); color: var(--muted); }
+    .coord-box {
+      background: #161620;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      font-family: "SF Mono", monospace;
+      color: var(--text);
+    }
+    .speed-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .speed-label { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+    .speed-label span { color: var(--cyan); font-weight: 700; }
+    .slider-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      position: relative;
+    }
+    .slider-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 45%;
+      background: var(--cyan);
+      border-radius: 2px;
+    }
+    .slider-thumb {
+      position: absolute;
+      top: 50%;
+      left: 45%;
+      transform: translate(-50%, -50%);
+      width: 12px; height: 12px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 0 0 2px var(--cyan);
+    }
+    .spoof-btn {
+      margin-top: auto;
+      background: var(--cyan);
+      color: #000;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .app-map {
+      flex: 1;
+      background: #0d1117;
+      position: relative;
+      overflow: hidden;
+    }
+    .map-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(30,30,50,.6) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30,30,50,.6) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .map-road { position: absolute; background: rgba(0,212,255,.12); }
+    .map-road.h { height: 8px; left: 0; right: 0; top: 45%; border-radius: 4px; }
+    .map-road.h2 { height: 5px; left: 0; right: 0; top: 65%; border-radius: 4px; }
+    .map-road.v { width: 8px; top: 0; bottom: 0; left: 30%; border-radius: 4px; }
+    .map-road.v2 { width: 5px; top: 0; bottom: 0; left: 65%; border-radius: 4px; }
+    .map-pin {
+      position: absolute;
+      width: 16px; height: 16px;
+      background: var(--cyan);
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      top: 38%; left: 55%;
+      box-shadow: 0 0 12px var(--cyan);
+    }
+    .map-pulse {
+      position: absolute;
+      top: 35%; left: 52%;
+      width: 32px; height: 32px;
+      border: 2px solid rgba(0,212,255,.4);
+      border-radius: 50%;
+      animation: ripple 2s ease-out infinite;
+    }
+    @keyframes ripple {
+      0%   { transform: scale(.5); opacity: 1; }
+      100% { transform: scale(2);  opacity: 0; }
+    }
+
+    /* ── FEATURES ── */
+    .section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--cyan);
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      transition: border-color .2s, transform .2s;
+    }
+    .feature-card:hover { border-color: rgba(0,212,255,.3); transform: translateY(-2px); }
+    .feature-icon {
+      width: 44px; height: 44px;
+      background: rgba(0,212,255,.1);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+    .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* ── REQUIREMENTS ── */
+    .reqs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .req-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .req-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+    .req-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .req-card p  { font-size: 12px; color: var(--muted); }
+
+    /* ── SETUP ── */
+    .setup-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .step-num {
+      width: 32px; height: 32px;
+      background: rgba(0,212,255,.15);
+      border: 1px solid rgba(0,212,255,.3);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--cyan);
+      flex-shrink: 0;
+    }
+    .step h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .step p  { font-size: 13px; color: var(--muted); }
+    code {
+      background: rgba(0,212,255,.08);
+      border: 1px solid rgba(0,212,255,.15);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12px;
+      color: var(--cyan);
+    }
+
+    /* ── GATEKEEPER WARNING ── */
+    .warning-box {
+      background: rgba(255, 180, 0, .06);
+      border: 1px solid rgba(255, 180, 0, .25);
+      border-radius: 12px;
+      padding: 20px 24px;
+      max-width: 680px;
+      margin: 0 auto 0;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .warning-box h4 { font-size: 13px; font-weight: 700; color: #ffb400; margin-bottom: 6px; }
+    .warning-box p  { font-size: 13px; color: var(--muted); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    @media (max-width: 640px) {
+      nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      .app-sidebar { display: none; }
+      footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <svg viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="13" fill="rgba(0,212,255,.12)" stroke="rgba(0,212,255,.4)" stroke-width="1.5"/>
+      <path d="M14 7v9M14 7l-3.5 4.5M14 7l3.5 4.5" stroke="#00d4ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="10" y1="19" x2="18" y2="19" stroke="#00d4ff" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="8" y1="21.5" x2="20" y2="21.5" stroke="rgba(0,212,255,.4)" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    GhostLocation
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#requirements">Requirements</a>
+    <a href="#setup">Setup</a>
+    <a href="#download">Download</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge">Free &amp; Open Source</div>
+  <h1>Spoof your iPhone<br/><span>GPS location</span> from your Mac</h1>
+  <p class="hero-sub">Pin any location on the map or simulate a drive at up to 170 mph. Works over WiFi after the first USB connection.</p>
+  <div class="cta-row">
+    <a href="#download" class="btn-primary" id="download">
+      <!-- download icon -->
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Download for Mac
+    </a>
+    <a href="https://github.com/YOUR_USERNAME/GhostLocation" class="btn-secondary" target="_blank">
+      <!-- github icon -->
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+  <p class="platform-note">Apple Silicon Mac · macOS 14+ · iOS 17+</p>
+</section>
+
+<!-- APP PREVIEW -->
+<div class="preview-wrap">
+  <div class="app-window">
+    <div class="window-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="window-title">GhostLocation</div>
+    </div>
+    <div class="app-body">
+      <div class="app-sidebar">
+        <div class="sidebar-header">
+          <div class="icon-wrap">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1.5C4.51 1.5 2.5 3.51 2.5 6c0 3.75 4.5 6.5 4.5 6.5S11.5 9.75 11.5 6c0-2.49-2.01-4.5-4.5-4.5z" fill="rgba(0,212,255,.3)" stroke="#00d4ff" stroke-width="1.2"/>
+              <circle cx="7" cy="6" r="1.5" fill="#00d4ff"/>
+            </svg>
+          </div>
+          <span class="sidebar-title">GhostLocation</span>
+        </div>
+        <div>
+          <div class="sidebar-label" style="margin-bottom:6px">Device</div>
+          <div class="device-row">
+            <div class="device-dot"></div>
+            <div>
+              <div style="font-weight:600;font-size:12px">My iPhone</div>
+              <div style="font-size:9px;color:var(--muted);font-family:monospace">00008110…</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="sidebar-label" style="margin-bottom:6px">Mode</div>
+          <div class="mode-row">
+            <div class="mode-btn">📍 Pin</div>
+            <div class="mode-btn off">🚗 Drive</div>
+          </div>
+        </div>
+        <div>
+          <div class="sidebar-label" style="margin-bottom:6px">Target Location</div>
+          <div class="coord-box">
+            <div>Lat: 40.712776°</div>
+            <div>Lon: -74.005974°</div>
+          </div>
+        </div>
+        <div class="speed-row">
+          <div class="speed-label"><span>Speed</span><span style="color:var(--cyan)">120 mph</span></div>
+          <div class="slider-track"><div class="slider-fill"></div><div class="slider-thumb"></div></div>
+          <div class="speed-label"><span>60</span><span>170</span></div>
+        </div>
+        <div class="spoof-btn">⚡ Start Spoofing</div>
+      </div>
+      <div class="app-map">
+        <div class="map-grid"></div>
+        <div class="map-road h"></div>
+        <div class="map-road h2"></div>
+        <div class="map-road v"></div>
+        <div class="map-road v2"></div>
+        <div class="map-pulse"></div>
+        <div class="map-pin"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-label">What it does</div>
+  <h2 class="section-title">Full location control</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">📍</div>
+      <h3>Pin Any Location</h3>
+      <p>Click anywhere on the map to instantly teleport your iPhone's GPS to that exact spot. Works globally.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🚗</div>
+      <h3>Drive Simulation</h3>
+      <p>Set a start and destination. GhostLocation calculates a real road route and moves your location along it.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>60–170 mph Speed Slider</h3>
+      <p>Drag the speed slider to control how fast you move along the route. Set it before you start.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📶</div>
+      <h3>WiFi After First USB</h3>
+      <p>Connect once via USB, enable WiFi Sync in Finder, then unplug. Works wirelessly from then on.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔍</div>
+      <h3>Location Search</h3>
+      <p>Search for any address, city, or landmark and jump straight to it on the map.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🌐</div>
+      <h3>iOS 17+ Support</h3>
+      <p>Uses pymobiledevice3 tunnel for full iOS 17 and later compatibility, including the latest iPhones.</p>
+    </div>
+  </div>
+</section>
+
+<!-- REQUIREMENTS -->
+<section class="section" id="requirements" style="padding-top:0">
+  <div class="section-label">What you need</div>
+  <h2 class="section-title">Requirements</h2>
+  <div class="reqs-grid">
+    <div class="req-card">
+      <div class="req-icon">💻</div>
+      <div>
+        <h4>Apple Silicon Mac</h4>
+        <p>macOS 14 Sonoma or later</p>
+      </div>
+    </div>
+    <div class="req-card">
+      <div class="req-icon">📱</div>
+      <div>
+        <h4>iPhone or iPad</h4>
+        <p>iOS 17 or later with Developer Mode enabled</p>
+      </div>
+    </div>
+    <div class="req-card">
+      <div class="req-icon">🍺</div>
+      <div>
+        <h4>Homebrew</h4>
+        <p>+ <code>libimobiledevice</code> via <code>brew install libimobiledevice</code></p>
+      </div>
+    </div>
+    <div class="req-card">
+      <div class="req-icon">🐍</div>
+      <div>
+        <h4>pymobiledevice3</h4>
+        <p><code>pip3 install pymobiledevice3</code></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SETUP -->
+<section class="section" id="setup" style="padding-top:0">
+  <div class="section-label">Getting started</div>
+  <h2 class="section-title">Setup guide</h2>
+  <div class="setup-steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <h4>Install dependencies</h4>
+        <p>Open Terminal and run:<br/><code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code><br/>then <code>brew install libimobiledevice</code> and <code>pip3 install pymobiledevice3</code></p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <h4>Enable Developer Mode on iPhone</h4>
+        <p>Settings → Privacy &amp; Security → Developer Mode → toggle ON. Your iPhone will restart.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <h4>Connect via USB &amp; Trust</h4>
+        <p>Plug in your iPhone. Tap <strong>Trust</strong> on the iPhone screen when prompted. Your device should appear in GhostLocation's sidebar.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div>
+        <h4>Start the iOS 17+ tunnel</h4>
+        <p>In Terminal run: <code>sudo python3 -m pymobiledevice3 remote tunneld</code><br/>It will print an <code>--rsd HOST PORT</code> line. Keep this window open and paste those values into GhostLocation.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div>
+        <h4>Spoof away</h4>
+        <p>Click the map to drop a pin, or switch to Drive mode and click two points for a route. Hit <strong>Start Spoofing</strong>.</p>
+      </div>
+    </div>
+  </div>
+
+  <br/>
+
+  <div class="warning-box">
+    <div style="font-size:22px;flex-shrink:0">⚠️</div>
+    <div>
+      <h4>macOS Gatekeeper notice</h4>
+      <p>Because GhostLocation isn't distributed through the App Store, macOS will warn you on first launch. After downloading, <strong>right-click the app → Open → Open anyway</strong> to bypass Gatekeeper. You only need to do this once.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="13" fill="rgba(0,212,255,.12)" stroke="rgba(0,212,255,.4)" stroke-width="1.5"/>
+      <path d="M14 7v9M14 7l-3.5 4.5M14 7l3.5 4.5" stroke="#00d4ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="10" y1="19" x2="18" y2="19" stroke="#00d4ff" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    GhostLocation
+  </div>
+  <span>Free &amp; open source · For educational &amp; personal use</span>
+  <a href="https://github.com/YOUR_USERNAME/GhostLocation" target="_blank">GitHub →</a>
+</footer>
+
+</body>
+</html>
