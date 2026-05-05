@@ -690,7 +690,7 @@
     <div style="font-size:22px;flex-shrink:0">⚠️</div>
     <div>
       <h4>macOS Gatekeeper notice</h4>
-      <p>Because GhostLocation isn't distributed through the App Store, macOS will warn you on first launch. After downloading, <strong>right-click the app → Open → Open anyway</strong> to bypass Gatekeeper. You only need to do this once.</p>
+      <p>Because GhostLocation is not notarized, macOS may say it is "damaged". After downloading and unzipping, open Terminal and run:</p><br/><code>xattr -cr ~/Downloads/GhostLocation.app</code><br/><br/><p>Then double-click the app normally. You only need to do this once.</p>
     </div>
   </div>
 </section>
